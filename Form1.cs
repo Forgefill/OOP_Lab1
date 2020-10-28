@@ -55,6 +55,7 @@ namespace OOP_Lab1
             }
         }
 
+
         private void OpenFileClick(object sender, EventArgs e)     //Кнопка загрузки таблиці
         {
             if (openFileDialog1.ShowDialog() == DialogResult.OK)
@@ -101,6 +102,8 @@ namespace OOP_Lab1
 
             }
         }
+        
+        
         private void ReadCell(string cell)      // Метод зв'язаний з зайгрузкою таблиці з файлу. 
         {
             List<string> a = new List<string>();
@@ -175,7 +178,8 @@ namespace OOP_Lab1
                       "Довідка", MessageBoxButtons.OK);
         }   
 
-        private void dgv_CellEndEdit(object sender, DataGridViewCellEventArgs e)
+
+        private void dgv_CellEndEdit(object sender, DataGridViewCellEventArgs e)        ////////////////
         {
             if (dgv.CurrentCell.Value == null )
             {
@@ -231,6 +235,7 @@ namespace OOP_Lab1
 
         }
 
+
         private void ModeButtonClick(object sender, EventArgs e) // Кнoпка зміни режиму;
         {
             if (mode)
@@ -259,7 +264,10 @@ namespace OOP_Lab1
             dgv.Rows[dgv.Rows.Count - 2].HeaderCell.Value = (dgv.Rows.Count - 1).ToString();
             dgv.Rows[dgv.Rows.Count - 1].HeaderCell.Value = (dgv.Rows.Count).ToString();
         }
-        private void DelRowClick(object sender, EventArgs e)
+        
+        
+        
+       private void DelRowClick(object sender, EventArgs e)             ////////////////
         {
             int RowId = dgv.Rows.Count-1;
             if(dgv.Rows.Count == 1)
@@ -267,6 +275,28 @@ namespace OOP_Lab1
                 label1.Text = "Ви не можете видалити останній рядок";
                 return;
             }
+
+            foreach (DataGridViewTextBoxCell i in dgv.Rows[RowId].Cells)
+            {
+                if (i.Value == null)
+                {
+                    continue;
+                }
+                else
+                {
+                    DialogResult dr = MessageBox.Show("В останньому рядку присутні дані, усі значення, що залежать  від нього буде втрачено. Видалити рядок?",
+                      "Важливо!", MessageBoxButtons.YesNo);
+                    switch (dr)
+                    {
+                        case DialogResult.Yes:
+                            break;
+                        case DialogResult.No:
+                            return;
+                    }
+                    break;
+                }
+            }
+
 
             foreach (DataGridViewTextBoxCell i in dgv.Rows[RowId].Cells)
             {
@@ -284,7 +314,10 @@ namespace OOP_Lab1
             }
             dgv.Rows.RemoveAt(RowId);
         }
-        private void SendError(Cell item, string LinkToError)
+        
+        
+         
+        private void SendError(Cell item, string LinkToError)         ////////////////
         {
             string msg = "Відсутнє значення " + LinkToError;
             foreach (Cell i in item.GetLinksToCell())
