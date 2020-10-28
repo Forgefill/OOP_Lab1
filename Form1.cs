@@ -179,7 +179,7 @@ namespace OOP_Lab1
         }   
 
 
-        private void dgv_CellEndEdit(object sender, DataGridViewCellEventArgs e)        ////////////////
+       private void dgv_CellEndEdit(object sender, DataGridViewCellEventArgs e)
         {
             if (dgv.CurrentCell.Value == null )
             {
@@ -213,7 +213,14 @@ namespace OOP_Lab1
                 label1.Text = ex.Message + Name;
                 if(data.Table.TryGetValue(Name, out obj))
                 {
-                    dgv.CurrentCell.Value = obj.Value;
+                    if (mode)
+                    {
+                        dgv.CurrentCell.Value = obj.Value;
+                    }
+                    else
+                    {
+                        dgv.CurrentCell.Value = obj.Expression;
+                    }
                 }
                 else
                 {
