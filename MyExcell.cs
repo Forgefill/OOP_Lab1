@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Windows.Forms;
@@ -20,7 +20,7 @@ namespace OOP_Lab1
         {
             bool add = false;
             Cell temp = new Cell('|', expression, ColId, RowId);
-
+            
             if (!Table.TryAdd(name, temp))
             {
                 temp = Table[name];
@@ -34,9 +34,13 @@ namespace OOP_Lab1
 
             if (HasReferenceError(temp, name))
             {
-                if (add) Table.Remove(name);
+                if (add)
+                {
+                    Table.Remove(name);
+                }
                 throw new StackOverflowException("Помилка. Комірка рекурсивно посилається на себе.");
             }
+
 
             dynamic value;
 
@@ -46,11 +50,7 @@ namespace OOP_Lab1
             }
             catch(Exception ex)
             {
-                if (add) Table.Remove(name);
-                foreach(var i in Table.Values)
-                {
-                    i.GetLinksToCell().Remove(temp);
-                }
+                DelLink(temp);
                 throw ex;
             }
 
@@ -59,8 +59,17 @@ namespace OOP_Lab1
             Cell obj = new Cell(value, expression, ColId, RowId);
             obj.Name = name;
 
-            Table[name] = obj;
+            if(Table.TryAdd(name, obj))
+            {
 
+            }
+            else
+            {
+                Table[name].Value = obj.Value;
+                Table[name].Expression = obj.Expression;
+            }
+
+            LinkManager.FindLincs(name, expression, Table);
             LabCalculatorVisitor.tableIdentifier[name] = value;
 
         }
@@ -77,20 +86,33 @@ namespace OOP_Lab1
             {
                 return false;
             }
-            else if (links.IndexOf(Table[FirstName]) == -1)
+            else if (links.IndexOf(Table[FirstName]) != -1)
             {
+                links.Remove(Table[FirstName]);
                 return true;
             }
             else if (links.IndexOf(item) != -1)
             {
+                links.Remove(item);
                 return true;
             }
             foreach (Cell i in item.GetLinksToCell())
             {
-                HasReferenceError(i, FirstName);
+                if(HasReferenceError(i, FirstName)) return true;
             }
 
             return false;
+        }
+
+        private void DelLink(Cell item)
+        {
+            foreach(var i in Table)
+            {
+                if(i.Value.GetLinksToCell().IndexOf(item) != -1)
+                {
+                    i.Value.GetLinksToCell().Remove(item);
+                }
+            }
         }
     }
 }
