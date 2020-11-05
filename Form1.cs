@@ -1,8 +1,12 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
 using System.IO;
+using System.Data;
+using System.Xml;
+using Microsoft.VisualBasic;
+
 namespace OOP_Lab1
 {        
     public partial class Form1 : Form
@@ -40,22 +44,38 @@ namespace OOP_Lab1
         {
             if (saveFileDialog1.ShowDialog() == DialogResult.OK)
             {
-                Stream FileStream = saveFileDialog1.OpenFile();
-                StreamWriter Sw = new StreamWriter(FileStream);
-
-                Sw.Write("Комірка Значення Вираз\tСномер\tРномер\n");
-
-
-                foreach(var i in data.Table)
-                {
-                    Sw.WriteLine(i.Key + "\t" + i.Value.Value.ToString() + "\t" + i.Value.Expression + "\t" + i.Value.Col.ToString() + "\t" + i.Value.Row.ToString());
-                }                   // B1 false  1 > 2  0 0
-                Sw.Close();
-                FileStream.Close();
+                SaveDataGriedView(saveFileDialog1.FileName);
             }
         }
 
+        private void SaveDataGriedView(string path)
+        {
+            XmlDocument xmlDoc = new XmlDocument();
+            XmlNode rootNode = xmlDoc.CreateElement("Cells");
+            xmlDoc.AppendChild(rootNode);
+            foreach (var i in data.Table.Values)
+            {
+                XmlNode userNode = xmlDoc.CreateElement("Cell");
+                XmlAttribute Name = xmlDoc.CreateAttribute("NameOfCell");
+                XmlAttribute Expression = xmlDoc.CreateAttribute("Expression");
+                XmlAttribute Value = xmlDoc.CreateAttribute("Value");
+                XmlAttribute RowId = xmlDoc.CreateAttribute("RowId");
+                XmlAttribute ColId = xmlDoc.CreateAttribute("ColId");
+                Name.Value = dgv.Columns[i.Col].Name + dgv.Rows[i.Row].HeaderCell.Value;
+                Expression.Value = i.Expression;
+                Value.Value = i.Value.ToString();
+                RowId.Value = i.Row.ToString();
+                ColId.Value = i.Col.ToString();
+                userNode.Attributes.Append(Name);
+                userNode.Attributes.Append(Expression);
+                userNode.Attributes.Append(Value);
+                userNode.Attributes.Append(ColId);
+                userNode.Attributes.Append(RowId);
+                rootNode.AppendChild(userNode);
+            }
 
+            xmlDoc.Save(path);
+        }                
         private void OpenFileClick(object sender, EventArgs e)     //Кнопка загрузки таблиці
         {
             if (openFileDialog1.ShowDialog() == DialogResult.OK)
@@ -71,29 +91,7 @@ namespace OOP_Lab1
                         return;
                 }
                 ClearTableClick("a", new EventArgs());
-
-                Stream FileStream = openFileDialog1.OpenFile();
-                StreamReader Sr = new StreamReader(FileStream);
-
-                Sr.ReadLine();
-
-
-                while (!Sr.EndOfStream)
-                {
-                    string cell = Sr.ReadLine();
-                    try
-                    {
-                        ReadCell(cell);
-                    }
-                    catch(Exception)
-                    {
-                        label1.Text = "Дані в файлі, знаходяться у неправильній формі";
-                        break;
-                    }
-                }
-
-                Sr.Close();
-                FileStream.Close();
+                ReadCell(openFileDialog1.FileName);
 
                 foreach (var i in data.Table)
                 {
@@ -102,54 +100,57 @@ namespace OOP_Lab1
 
             }
         }
-        
-        
-        private void ReadCell(string cell)      // Метод зв'язаний з зайгрузкою таблиці з файлу. 
+        private void ReadCell(string path)      // Метод зв'язаний з зайгрузкою таблиці з файлу. 
         {
-            List<string> a = new List<string>();
-            string temp = "";
-            for (int i = 0; i < cell.Length; ++i)
+            
+            XmlReader reader = XmlReader.Create(path);
+            while(reader.Read())
             {
-                if (cell[i] != '\t')
+                if (reader.NodeType == XmlNodeType.Element)
                 {
-                    temp += cell[i];
+                  if(reader.HasAttributes)
+                    {
+                        dynamic value = null;
+                        string expression=null;
+                        int RowId = -1;
+                        int ColId = -1;
+                        string name = null;
+                        while(reader.MoveToNextAttribute())
+                        {
+                            if (reader.Name == "NameOfCell") name = reader.Value;
+                            else if (reader.Name == "Expression") expression = reader.Value;
+                            else if (reader.Name == "Value")
+                            {
+                                if (reader.Value == "DivBy0")
+                                {
+                                    value = "DivBy0";
+                                }
+                                else if (reader.Value == "False" || reader.Value == "True")
+                                {
+                                    value = bool.Parse(reader.Value);
+                                }
+                                else if (reader.Value == "null")
+                                {
+                                    value = null;
+                                }
+                                else
+                                {
+                                    value = int.Parse(reader.Value);
+                                }
+                            }
+                            else if(reader.Name == "ColId")ColId = int.Parse(reader.Value);
+                            else if(reader.Name == "RowId")RowId = int.Parse(reader.Value);
+                        }
+                        data.Table[name] = new Cell(value, expression, ColId, RowId);
+                        data.Table[name].Name = name;
+                        if (value != null) LabCalculatorVisitor.tableIdentifier[name] = value;
+                        dgv[ColId, RowId].Value = value;
+                    }
                 }
-                else
-                {
-                    a.Add(temp);
-                    temp = "";
-                }
-            }
-            a.Add(cell.Last().ToString());
 
-            bool BValue;
-            dynamic Value;
-            string Name = a[0];
-            if(bool.TryParse(a[1], out BValue))
-            {
-                Value = BValue;
-            }
-            else
-            {
-                Value = double.Parse(a[1]);
-            }
-            string Expression = a[2];
-            int ColId = int.Parse(a[3]);
-            int RowId = int.Parse(a[4]);
 
-            Cell obj = new Cell(Value, Expression, ColId, RowId);
-
-            data.Table.Add(a[0], obj);
-            LabCalculatorVisitor.tableIdentifier[Name] = Value;
-
-            if (mode)
-            {
-                dgv[ColId, ColId].Value = Value;
             }
-            else
-            {
-                dgv[ColId, RowId].Value = Expression;
-            }
+            reader.Close();
         }
 
 
@@ -159,7 +160,7 @@ namespace OOP_Lab1
             LabCalculatorVisitor.tableIdentifier.Clear();
             dgv.Rows.Clear();
 
-            dgv.Rows.Add(100);
+            dgv.Rows.Add(50);
             for (int i = 0; (i <= (dgv.Rows.Count - 1)); i++)
             {
                 dgv.Rows[i].HeaderCell.Value = (i + 1).ToString();
@@ -178,8 +179,7 @@ namespace OOP_Lab1
                       "Довідка", MessageBoxButtons.OK);
         }   
 
-
-       private void dgv_CellEndEdit(object sender, DataGridViewCellEventArgs e)
+        private void dgv_CellEndEdit(object sender, DataGridViewCellEventArgs e)
         {
             if (dgv.CurrentCell.Value == null )
             {
@@ -196,7 +196,7 @@ namespace OOP_Lab1
             {
                 data.AddCell(Expression, Name, ColId, RowId);
             }
-            catch(ArgumentException)
+            catch(ArgumentException ex)
             {
                 label1.Text = "Вираз в комірці " + Name + " не вдалося обробити.";
                 dgv.CurrentCell.Value = null;
@@ -215,11 +215,11 @@ namespace OOP_Lab1
                 {
                     if (mode)
                     {
-                        dgv.CurrentCell.Value = obj.Value;
+                        dgv[ColId, RowId].Value = data.Table[Name].Value;
                     }
                     else
                     {
-                        dgv.CurrentCell.Value = obj.Expression;
+                        dgv[ColId, RowId].Value = Expression;
                     }
                 }
                 else
@@ -228,6 +228,7 @@ namespace OOP_Lab1
                     return;
                 }
             }
+            
 
             if (mode)
             {
@@ -238,10 +239,9 @@ namespace OOP_Lab1
                 dgv[ColId, RowId].Value = Expression;
             }
 
+
             LinkManager.SendRedefinition(data.Table[Name], dgv);
-
         }
-
 
         private void ModeButtonClick(object sender, EventArgs e) // Кнoпка зміни режиму;
         {
@@ -249,9 +249,9 @@ namespace OOP_Lab1
             {
                 foreach (var s in data.Table)
                 {
-                    dgv[s.Value.Col, s.Value.Row].Value = s.Value.Expression;
-                    mode = false;
+                    if(s.Value.Expression != null) dgv[s.Value.Col, s.Value.Row].Value = s.Value.Expression;
                 }
+                mode = false;
                 ModeBox.Text = "Вираз";
             }
             
@@ -259,9 +259,9 @@ namespace OOP_Lab1
             {
                 foreach (var s in data.Table)
                 {
-                    dgv[s.Value.Col, s.Value.Row].Value = s.Value.Value;
-                    mode = true;
+                    if (s.Value.Expression != null) dgv[s.Value.Col, s.Value.Row].Value = s.Value.Value;
                 }
+                mode = true;
                 ModeBox.Text = "значення";
             }
         }
@@ -271,15 +271,13 @@ namespace OOP_Lab1
             dgv.Rows[dgv.Rows.Count - 2].HeaderCell.Value = (dgv.Rows.Count - 1).ToString();
             dgv.Rows[dgv.Rows.Count - 1].HeaderCell.Value = (dgv.Rows.Count).ToString();
         }
-        
-        
-        
-       private void DelRowClick(object sender, EventArgs e)             ////////////////
+        private void DelRowClick(object sender, EventArgs e)
         {
             int RowId = dgv.Rows.Count-1;
             if(dgv.Rows.Count == 1)
             {
-                label1.Text = "Ви не можете видалити останній рядок";
+                DialogResult dr = MessageBox.Show("Видалити останній рядок неможливо.",
+                     "Важливо!", MessageBoxButtons.OK);
                 return;
             }
 
@@ -315,18 +313,17 @@ namespace OOP_Lab1
                 {
                     string name = dgv.Columns[i.ColumnIndex].HeaderText + (RowId + 1);
                     LabCalculatorVisitor.tableIdentifier.Remove(name);
+  
                     SendError(data.Table[name], name);
-                    data.Table.Remove(name);
+                    data.Table[name].Value = null;
+                    data.Table[name].Expression = null;
                 }
             }
             dgv.Rows.RemoveAt(RowId);
         }
-        
-        
-         
-        private void SendError(Cell item, string LinkToError)         ////////////////
+        private void SendError(Cell item, string LinkToError)
         {
-            string msg = "Відсутнє значення " + LinkToError;
+            string msg = "Error ";
             foreach (Cell i in item.GetLinksToCell())
             {
                 string name = dgv.Columns[i.Col].HeaderText + (i.Row + 1);
@@ -336,6 +333,22 @@ namespace OOP_Lab1
 
                 dgv[i.Col, i.Row].Value = msg;
                 SendError(i, LinkToError);
+            }
+        }
+
+        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            DialogResult dr = MessageBox.Show("Усі дані, що не були збережені, буде видалено. Вийти?",
+                     "Важливо!", MessageBoxButtons.YesNo);
+           
+            if (dr == DialogResult.Yes)
+            {
+                e.Cancel = false;
+                return;
+            }
+            else if(dr == DialogResult.No)
+            {
+                e.Cancel = true;
             }
         }
     }
