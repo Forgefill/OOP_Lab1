@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Windows.Forms;
@@ -20,9 +20,17 @@ namespace OOP_Lab1
                 
                 string ColumnName = dgv.Columns[i.Col].HeaderText;
                 string RowName = dgv.Rows[i.Row].HeaderCell.Value.ToString();
+                dynamic value;
+                try
+                {
+                    value = Calculator.Evaluate(i.Expression);
+                }
+                catch(DivideByZeroException ex)
+                {
+                    value = "DivBy0";
+                }
+                i.Value = value;
 
-                i.Evaluate();
-                
                 LabCalculatorVisitor.tableIdentifier[ColumnName + RowName] = i.Value;
                 dgv[i.Col, i.Row].Value = i.Value;
             }
@@ -33,7 +41,7 @@ namespace OOP_Lab1
         }
         // Метод для знаходження імен колонок, що знаходяться в name.Expression.
         public static void FindLincs(string name, string expression, Dictionary<string, Cell> MyTable) 
-        {  //   1 + 2 > 3  = A1;
+        {  //   1 + 2 > 3  = A1;  - B2
             for (int i = 0; i < expression.Length - 1; ++i)
             {
                 if (expression[i] > 64 && expression[i] < 91) // A-Z
