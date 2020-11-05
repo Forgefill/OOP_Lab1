@@ -12,14 +12,11 @@ namespace OOP_Lab1
     {
         public Dictionary<string, Cell> Table { get; } = new Dictionary<string, Cell>();
 
-        public MyExcell()
-        {
-
-        }
+        public MyExcell(){}
         public void AddCell(string expression, string name, int ColId, int RowId)
         {
             bool add = false;
-            Cell temp = new Cell('|', expression, ColId, RowId);
+            Cell temp = new Cell(null, expression, ColId, RowId);
             
             if (!Table.TryAdd(name, temp))
             {
@@ -30,7 +27,15 @@ namespace OOP_Lab1
                 add = true;
             }
 
-            LinkManager.FindLincs(name, expression, Table);
+            try
+            {
+                LinkManager.FindLincs(name, expression, Table);
+            }
+            catch(ArgumentException e)
+            {
+                Table.Remove(name);
+                throw e;
+            }
 
             if (HasReferenceError(temp, name))
             {
@@ -38,6 +43,7 @@ namespace OOP_Lab1
                 {
                     Table.Remove(name);
                 }
+                DelLink(temp);
                 throw new StackOverflowException("Помилка. Комірка рекурсивно посилається на себе.");
             }
 
@@ -51,15 +57,17 @@ namespace OOP_Lab1
             catch(Exception ex)
             {
                 DelLink(temp);
+                Table.Remove(name);
                 throw ex;
             }
-
+            
 
 
             Cell obj = new Cell(value, expression, ColId, RowId);
             obj.Name = name;
 
-            if(Table.TryAdd(name, obj))
+
+            if (Table.TryAdd(name, obj))
             {
 
             }
@@ -71,7 +79,6 @@ namespace OOP_Lab1
 
             LinkManager.FindLincs(name, expression, Table);
             LabCalculatorVisitor.tableIdentifier[name] = value;
-
         }
         public void Clear()
         {
